@@ -22,6 +22,14 @@ class Config:
 
     # Device configuration
     device: str = 'cuda' if torch.cuda.is_available() else 'cpu'  # Automatically select GPU or CPU
+    
+    # Generator configuration
+    generator_hidden_dim: int = 64
+    num_residual_blocks: int = 8
+    
+    # Discriminator configuration
+    discriminator_hidden_dim: int = 64  # Base number of filters for discriminator
+    
 
     @classmethod
     def print_config(cls):

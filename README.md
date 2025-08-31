@@ -30,11 +30,12 @@ The project is under active development. Below is a summary of the implemented c
 
    - Implemented a `Generator` as a custom PyTorch `nn.Module`
 
+7. **Discriminator**
 
+   - Implemented a `Discriminator` as a custom PyTorch `nn.Module`
 
 ## Next Steps
 
-- Implement the discriminator (e.g., PatchGAN) to classify real vs. generated images.
 - Develop the training loop, including adversarial, cycle consistency, and identity losses.
 - Add utilities for saving and visualizing generated images.
 - Test and validate the model on the dataset.

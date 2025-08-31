@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 
 from utils import Config
-
+from torchinfo import summary
 
 class ResidualBlock(nn.Module):
     """
@@ -193,7 +193,115 @@ class Generator(nn.Module):
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0.0)
 
+class Discriminator(nn.Module):
+    """
+    PatchGAN discriminator for CycleGAN.
+    Outputs a patch-wise probability map for real/fake classification.
+    """
+    def __init__(self, in_channels: int = Config.img_channels,
+                 hidden_dim: int = Config.discriminator_hidden_dim):
+        """
+        Initialize the PatchGAN discriminator.
 
+        Args:
+            in_channels (int): Number of input channels (default: 3 for RGB).
+            hidden_dim (int): Base number of filters.
+        """
+        super(Discriminator, self).__init__()
+
+        # Layer 1: 4x4 Conv, stride 2, hidden_dim filters
+        self.layer1 = nn.Sequential(
+            nn.Conv2d(
+                in_channels=in_channels,
+                out_channels=hidden_dim,
+                kernel_size=4,
+                stride=2,
+                padding=1,
+                bias=True
+            ),
+            nn.LeakyReLU(0.2, inplace=True)
+        )
+        
+        # Layer 2: 4x4 Conv, stride 2, 2*hidden_dim filters
+        self.layer2 = nn.Sequential(
+            nn.Conv2d(
+                hidden_dim,
+                hidden_dim * 2,
+                kernel_size=4,
+                stride=2,
+                padding=1,
+                bias=True
+            ),
+            nn.InstanceNorm2d(hidden_dim * 2),
+            nn.LeakyReLU(0.2, inplace=True)
+        )
+        
+        # Layer 3: 4x4 Conv, stride 2, 4*hidden_dim filters
+        self.layer3 = nn.Sequential(
+            nn.Conv2d(
+                hidden_dim * 2,
+                hidden_dim * 4,
+                kernel_size=4,
+                stride=2,
+                padding=1,
+                bias=True
+            ),
+            nn.InstanceNorm2d(hidden_dim * 4),
+            nn.LeakyReLU(0.2, inplace=True)
+        )
+        
+         # Layer 4: 4x4 Conv, stride 1, 8*hidden_dim filters
+        self.layer4 = nn.Sequential(
+            nn.Conv2d(
+                hidden_dim * 4,
+                hidden_dim * 8,
+                kernel_size=4,
+                stride=1,
+                padding=1,
+                bias=True
+            ),
+            nn.InstanceNorm2d(hidden_dim * 8),
+            nn.LeakyReLU(0.2, inplace=True)
+        )
+
+        # Output layer: 4x4 Conv, stride 1, 1 channel (patch map)
+        self.output = nn.Conv2d(
+            hidden_dim * 8,
+            1,
+            kernel_size=4,
+            stride=1,
+            padding=1,
+            bias=True
+        )
+        
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass of the discriminator.
+
+        Args:
+            x (torch.Tensor): Input image tensor of shape [batch_size, in_channels, height, width].
+
+        Returns:
+            torch.Tensor: Patch map tensor of shape [batch_size, 1, H', W'].
+        """
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.layer4(x)
+        x = self.output(x)
+        return x
+    
+    @staticmethod
+    def init_weights(m):
+        """
+        Initialize weights for convolutional layers.
+        """
+        if isinstance(m, nn.Conv2d):
+            nn.init.normal_(m.weight, mean=0.0, std=0.02)
+            if m.bias is not None:
+                nn.init.constant_(m.bias, 0.0)
+
+    
 
 if __name__ == "__main__":
     # Example usage for testing the residual block
@@ -217,8 +325,26 @@ if __name__ == "__main__":
     generator = Generator().to(Config.device)
     generator.apply(Generator.init_weights)
 
+    # # Forward pass
+    # output = generator(sample_input)
+    # print(f"Input shape: {sample_input.shape}")
+    # print(f"Output shape: {output.shape}")
+    
+    # Initialize the discriminator and apply weight initialization
+    discriminator = Discriminator().to(Config.device)
+    discriminator.apply(Discriminator.init_weights)
+
     # Forward pass
-    output = generator(sample_input)
-    print(f"Input shape: {sample_input.shape}")
-    print(f"Output shape: {output.shape}")
+    # output = discriminator(sample_input)
+    # print(f"Input shape: {sample_input.shape}")
+    # print(f"Output shape: {output.shape}")
+    
+    # Print model summary
+    input_shape = (Config.batch_size, Config.img_channels, Config.img_size, Config.img_size)
+    print(f'input_shape: {input_shape}')
+    summary(
+        generator,
+        input_size=input_shape,
+        device=Config.device
+    )
     

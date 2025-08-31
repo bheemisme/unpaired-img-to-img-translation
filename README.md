@@ -26,9 +26,14 @@ The project is under active development. Below is a summary of the implemented c
 
    - Implemented a `ResidualBlock` as a custom PyTorch `nn.Module`, a core component of the CycleGAN generator. It includes two convolutional layers with instance normalization, ReLU activation, and reflection padding, plus a skip connection.
 
+6. **Generator**:
+
+   - Implemented a `Generator` as a custom PyTorch `nn.Module`
+
+
+
 ## Next Steps
 
-- Complete the CycleGAN generator by integrating the residual block into the full architecture (encoder, transformer, decoder).
 - Implement the discriminator (e.g., PatchGAN) to classify real vs. generated images.
 - Develop the training loop, including adversarial, cycle consistency, and identity losses.
 - Add utilities for saving and visualizing generated images.

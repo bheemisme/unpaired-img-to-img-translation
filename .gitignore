@@ -1,0 +1,10 @@
+*.zip
+*.ipynb
+
+/**/*.jpg
+/**/*.jpeg
+/**/*.png
+/**/*.tfrec
+
+__pycache__
+data

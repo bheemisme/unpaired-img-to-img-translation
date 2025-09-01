@@ -14,10 +14,12 @@ class Config:
     pin_memory: bool = torch.cuda.is_available()  # Enable pinned memory if GPU is available
     x_dir: str = "./data/monet_jpg"
     y_dir: str = "./data/photo_jpg"
+    train_split: float = 0.8  # Fraction of dataset for training
     
     # image parameters
     img_size: int = 256 # width and height of the image
     img_channels: int = 3 # number of channels in the image
+    
     
 
     # Device configuration
@@ -33,6 +35,14 @@ class Config:
     # loss parameters
     lambda_cycle: float = 10.0  # Weight for cycle consistency loss
     lambda_identity: float = 5.0  # Weight for identity loss
+    
+    # training params
+    learning_rate: float = 2e-4
+    beta1: float = 0.5
+    beta2: float = 0.999
+    num_epochs: int = 200
+    checkpoint_dir: str = "./checkpoints"
+    eval_dir: str = "./output"  # Directory for saving test images
 
     @classmethod
     def print_config(cls):

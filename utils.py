@@ -30,6 +30,9 @@ class Config:
     # Discriminator configuration
     discriminator_hidden_dim: int = 64  # Base number of filters for discriminator
     
+    # loss parameters
+    lambda_cycle: float = 10.0  # Weight for cycle consistency loss
+    lambda_identity: float = 5.0  # Weight for identity loss
 
     @classmethod
     def print_config(cls):

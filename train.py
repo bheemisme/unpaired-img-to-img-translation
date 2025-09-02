@@ -1,13 +1,13 @@
 import torch
-import torch.nn as nn
 import torch.optim as optim
 import os
+
+from evaluate import evaluate_cycle_gan
 from utils import Config
 from networks import Generator, Discriminator
 from losses import cycle_consistency_loss, adversarial_loss, identity_loss
-from load_data import ImageDataset
-from torch.utils.data import DataLoader
-from torchvision import transforms
+from load_data import get_dataloaders
+
 
 
 def train_cycle_gan():
@@ -39,34 +39,25 @@ def train_cycle_gan():
         lr=Config.learning_rate, betas=(Config.beta1, Config.beta2)
     )
 
-    # Data loaders
-    transform = transforms.Compose([
-        transforms.Resize((Config.img_size, Config.img_size)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5] * Config.img_channels, std=[0.5] * Config.img_channels)
-    ])
-    dataset_x = ImageDataset(Config.x_dir, transform=transform)
-    dataset_y = ImageDataset(Config.y_dir, transform=transform)
-    
-    dataloader_x = DataLoader(
-        dataset_x, batch_size=Config.batch_size, shuffle=True,
-        num_workers=Config.num_workers, pin_memory=Config.pin_memory
-    )
-    
-    dataloader_y = DataLoader(
-        dataset_y, batch_size=Config.batch_size, shuffle=True,
-        num_workers=Config.num_workers, pin_memory=Config.pin_memory
-    )
-    
+        # Data loaders
+    train_loader_x, train_loader_y, test_loader_x, test_loader_y = get_dataloaders()
+
+    # Create checkpoint directory
+    os.makedirs(Config.checkpoint_dir, exist_ok=True)
+
     # Create checkpoint directory
     os.makedirs(Config.checkpoint_dir, exist_ok=True)
     
     # Training loop
     for epoch in range(Config.num_epochs):
-        for i, (real_x, real_y) in enumerate(zip(dataloader_x, dataloader_y)):
+        for i, (real_x, real_y) in enumerate(zip(train_loader_x, train_loader_y)):
             real_x = real_x.to(device)
             real_y = real_y.to(device)
 
+            discriminator_x.train()
+            discriminator_y.train()
+            generator_x_to_y.train()
+            generator_x_to_y.train()
             # --- Train Discriminators ---
             d_optimizer.zero_grad()
 
@@ -106,8 +97,8 @@ def train_cycle_gan():
 
             g_loss.backward()
             g_optimizer.step()
-
-            # Print progress
+            
+                    # Print progress
             if i % 100 == 0:
                 print(f"Epoch [{epoch+1}/{Config.num_epochs}] Batch [{i}] "
                       f"D Loss: {d_loss.item():.4f} G Loss: {g_loss.item():.4f} "
@@ -116,6 +107,7 @@ def train_cycle_gan():
 
         # Save checkpoint every 10 epochs
         if (epoch + 1) % 10 == 0:
+            checkpoint_path = os.path.join(Config.checkpoint_dir, f'checkpoint_epoch_{epoch+1}.pth')
             torch.save({
                 'generator_x_to_y': generator_x_to_y.state_dict(),
                 'generator_y_to_x': generator_y_to_x.state_dict(),
@@ -124,7 +116,14 @@ def train_cycle_gan():
                 'g_optimizer': g_optimizer.state_dict(),
                 'd_optimizer': d_optimizer.state_dict(),
                 'epoch': epoch + 1
-            }, os.path.join(Config.checkpoint_dir, f'checkpoint_epoch_{epoch+1}.pth'))
+            }, checkpoint_path)
+
+            
+            # Evaluate on test set
+            metrics = evaluate_cycle_gan(checkpoint_path=checkpoint_path)
+            print(f"Epoch [{epoch+1}] Evaluation Metrics: {metrics}")
+
+
 
 
 

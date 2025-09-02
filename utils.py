@@ -1,7 +1,12 @@
 import zipfile
 import shutil
 import torch
+import os
+
+from typing import Optional
 from pathlib import Path
+from torchvision.utils import save_image
+from torch.utils.data import DataLoader
 
 class Config:
     """
@@ -15,6 +20,7 @@ class Config:
     x_dir: str = "./data/monet_jpg"
     y_dir: str = "./data/photo_jpg"
     train_split: float = 0.8  # Fraction of dataset for training
+    test_batch_size: int = 3
     
     # image parameters
     img_size: int = 256 # width and height of the image
@@ -93,6 +99,45 @@ def extract_zip(zip_path: str, extract_dir: str):
     except zipfile.BadZipFile as e:
         raise zipfile.BadZipFile(f"Invalid or corrupted zip file: {e}")
     
+def generate_and_save_images(
+    dataloader: DataLoader,
+    generator: torch.nn.Module,
+    output_dir: str = Config.eval_dir,
+    max_images: Optional[int] = 5,
+    prefix: str = "generated"
+) -> None:
+    """
+    Generate images using a generator and save them to a directory.
+
+    Args:
+        dataloader (DataLoader): DataLoader with input images.
+        generator (torch.nn.Module): Generator model (e.g., generator_x_to_y or generator_y_to_x).
+        output_dir (str): Directory to save generated images. Defaults to Config.eval_dir.
+        max_images (Optional[int]): Maximum number of images to generate and save. If None, process all.
+        prefix (str): Prefix for saved image filenames (e.g., 'monet_to_photo', 'photo_to_monet').
+    """
+    # Ensure output directory exists
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Set generator to evaluation mode
+    generator.eval()
+
+    # Generate and save images
+    with torch.no_grad():
+        for i, images in enumerate(dataloader):
+            if max_images is not None and i >= max_images:
+                break
+            images = images.to(Config.device)
+            generated_images = generator(images)
+            # Save images with normalization to [0, 1] for visualization
+            save_image(
+                generated_images,
+                os.path.join(output_dir, f"{prefix}_{i}.png"),
+                normalize=True,
+                range=(-1, 1)  # Match normalization from load_data.py
+            )
+
+
 if __name__ == "__main__":
     # Example usage
     # try:

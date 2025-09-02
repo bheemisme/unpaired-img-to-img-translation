@@ -123,14 +123,14 @@ def get_dataloaders():
     )
     test_loader_x = DataLoader(
         test_dataset_x,
-        batch_size=Config.batch_size,
+        batch_size=Config.test_batch_size,
         shuffle=False,
         num_workers=Config.num_workers,
         pin_memory=Config.pin_memory
     )
     test_loader_y = DataLoader(
         test_dataset_y,
-        batch_size=Config.batch_size,
+        batch_size=Config.test_batch_size,
         shuffle=False,
         num_workers=Config.num_workers,
         pin_memory=Config.pin_memory

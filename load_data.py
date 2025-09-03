@@ -1,9 +1,8 @@
 import torch
 import torchvision.transforms as transforms
 
-
 from PIL import Image
-from torch.utils.data import Dataset, DataLoader, random_split
+from torch.utils.data import Dataset, DataLoader, random_split, RandomSampler
 from pathlib import Path
 from utils import Config
 
@@ -79,6 +78,38 @@ class ImageDataset(Dataset):
 
         return image  # type: ignore
 
+def make_loaders(x_ds, y_ds):
+    x_sampler = RandomSampler(
+        data_source=x_ds,
+        replacement=True,
+        num_samples=min(len(x_ds), len(y_ds)),
+    )
+    y_sampler = RandomSampler(
+        data_source=y_ds,
+        replacement=True,
+        num_samples=min(len(x_ds), len(y_ds)),
+    )
+    
+    x_loader = DataLoader(
+        x_ds,
+        batch_size=Config.train_batch_size,
+        num_workers=Config.num_workers,
+        pin_memory=Config.pin_memory,
+        drop_last=True,
+        sampler=x_sampler,
+    )
+    y_loader = DataLoader(
+        y_ds,
+        batch_size=Config.train_batch_size,
+        num_workers=Config.num_workers,
+        pin_memory=Config.pin_memory,
+        drop_last=True,
+        sampler=y_sampler
+    )
+    
+    return x_loader, y_loader
+    
+
 def get_dataloaders():
     """
     Create training and test DataLoaders for both domains (X: Monet, Y: photos).
@@ -87,85 +118,66 @@ def get_dataloaders():
         tuple: (train_loader_x, train_loader_y, test_loader_x, test_loader_y)
     """
     # Define transforms
-    transform = transforms.Compose([
-        transforms.Resize((Config.img_size, Config.img_size)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5] * Config.img_channels, std=[0.5] * Config.img_channels)
-    ])
+    transform = transforms.Compose(
+        [
+            transforms.Resize((Config.img_size, Config.img_size)),
+            transforms.ToTensor(),
+            transforms.Normalize(
+                mean=[0.5] * Config.img_channels, std=[0.5] * Config.img_channels
+            ),
+        ]
+    )
 
     # Initialize datasets
-    dataset_x = ImageDataset(Config.x_dir, transform=transform)
-    dataset_y = ImageDataset(Config.y_dir, transform=transform)
+    x_train_dataset = ImageDataset(Config.x_train_dir, transform=transform)
+    y_train_dataset = ImageDataset(Config.y_train_dir, transform=transform)
+    x_val_dataset = ImageDataset(Config.x_val_dir, transform=transform)
+    y_val_dataset = ImageDataset(Config.y_val_dir, transform=transform)
+    x_test_dataset = ImageDataset(Config.x_test_dir, transform=transform)
+    y_test_dataset = ImageDataset(Config.y_test_dir, transform=transform)
 
-    # Split datasets into training and test sets
-    train_size_x = int(Config.train_split * len(dataset_x))
-    test_size_x = len(dataset_x) - train_size_x
-    train_dataset_x, test_dataset_x = random_split(dataset_x, [train_size_x, test_size_x])
-
-    train_size_y = int(Config.train_split * len(dataset_y))
-    test_size_y = len(dataset_y) - train_size_y
-    train_dataset_y, test_dataset_y = random_split(dataset_y, [train_size_y, test_size_y])
-
-    # Create DataLoaders
-    train_loader_x = DataLoader(
-        train_dataset_x,
-        batch_size=Config.batch_size,
-        shuffle=True,
-        num_workers=Config.num_workers,
-        pin_memory=Config.pin_memory
+    
+    x_train_loader, y_train_loader = make_loaders(x_train_dataset, y_train_dataset)
+    x_val_loader, y_val_loader = make_loaders(x_val_dataset, y_val_dataset)
+    x_test_loader, y_test_loader = make_loaders(x_test_dataset, y_test_dataset)
+    
+    
+    return (
+        x_train_loader,
+        y_train_loader,
+        x_val_loader,
+        y_val_loader,
+        x_test_loader,
+        y_test_loader,
     )
-    train_loader_y = DataLoader(
-        train_dataset_y,
-        batch_size=Config.batch_size,
-        shuffle=True,
-        num_workers=Config.num_workers,
-        pin_memory=Config.pin_memory
-    )
-    test_loader_x = DataLoader(
-        test_dataset_x,
-        batch_size=Config.test_batch_size,
-        shuffle=False,
-        num_workers=Config.num_workers,
-        pin_memory=Config.pin_memory
-    )
-    test_loader_y = DataLoader(
-        test_dataset_y,
-        batch_size=Config.test_batch_size,
-        shuffle=False,
-        num_workers=Config.num_workers,
-        pin_memory=Config.pin_memory
-    )
-
-    return train_loader_x, train_loader_y, test_loader_x, test_loader_y
 
 
 if __name__ == "__main__":
     # download_data()
-    
-    
-# Define a simple transform
+
+    # Define a simple transform
     transform = transforms.Compose(
-    [
-        transforms.Resize((Config.img_size, Config.img_size)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
-    ]
+        [
+            transforms.Resize((Config.img_size, Config.img_size)),
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+        ]
     )
 
-    x_loader = DataLoader(
-        dataset=ImageDataset(directory=Config.x_dir, transform=transform),
-        batch_size=Config.batch_size,
-        shuffle=True,
-        pin_memory=Config.pin_memory,
-        num_workers=Config.num_workers,
-    )
+    x_loader, y_loader, _, _, _, _ =get_dataloaders()
+    
+    count = 0
+    for imgx, imgy in zip(x_loader, y_loader):
+        count += 1
+    
+    print(count)
 
-    images = next(iter(x_loader))
-    print(len(images))
-    print(images[0].shape)
-    # print(images[0][0][0][:10])
-    print(images[0][1][:10][:10])
-    print(torch.max(images[0][1]))
-    print(torch.min(images[0][1]))
+    # images = next(iter(x_loader))
+    # print(len(images))
+    # print(images[0].shape)
+    # # print(images[0][0][0][:10])
+    # print(images[0][1][:10][:10])
+    # print(torch.max(images[0][1]))
+    # print(torch.min(images[0][1]))
 
     #

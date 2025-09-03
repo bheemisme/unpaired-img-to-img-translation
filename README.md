@@ -38,16 +38,14 @@ The project is under active development. Below is a summary of the implemented c
 
    - Implemented all loss functions (cyclic consistency loss, adversarial loss, identity loss)
 
+9. **MiFiD**
+
+   - Implemented MiFiD score
+
+10. **Training loop**
+
+    - Implemented training loop
+
 ## Next Steps
 
-- Develop the training loop
-- Add utilities for saving and visualizing generated images.
-- Test and validate the model on the dataset.
-
-## Repository Structure
-
-- `utils.py`: All necessary utilities are implemented
-
-- `load_data.py`: Logic for loading data into dataloaders
-
-- `networks.py`: Contains code for generator and discriminator.
+- Implement utilities for running this project on kaggle

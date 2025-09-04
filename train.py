@@ -124,9 +124,14 @@ def train_cycle_gan():
 
     # Training loop
     for epoch in range(Config.num_epochs):
-        print(f"epoch: {epoch}")
+        run.log(
+            {
+                "epoch": epoch + 1,
+                "g_lr": g_optimizer.param_groups[0]["lr"],
+                "d_lr": d_optimizer.param_groups[0]["lr"],
+            }
+        )
         for i, (real_x, real_y) in enumerate(zip(x_train_loader, y_train_loader)):
-            print(f"batch: {i}")
             real_x = real_x.to(Config.device)
             real_y = real_y.to(Config.device)
 
@@ -186,6 +191,7 @@ def train_cycle_gan():
                 run.log(
                     {
                         "epoch": epoch + 1,
+                        "batch": i + 1,
                         "d_loss": d_loss.item(),
                         "g_loss": g_loss.item(),
                         "g_adv_loss": g_adv_loss.item(),
@@ -195,7 +201,7 @@ def train_cycle_gan():
                 )
 
         # Save checkpoint every 10 epochs
-        if (epoch + 1) % 10 == 0 or epoch + 1 == Config.num_epochs:
+        if (epoch + 1) % 1 == 0 or (epoch + 1 == Config.num_epochs):
             checkpoint_path = os.path.join(
                 Config.checkpoint_dir, f"checkpoint_epoch_{epoch+1}.pth"
             )
@@ -213,18 +219,11 @@ def train_cycle_gan():
             # Evaluate on test set
             metrics = evaluate_cycle_gan(checkpoint_path=checkpoint_path)
             print(f"Epoch [{epoch+1}] Evaluation Metrics: {metrics}")
+            run.log(metrics)
 
         # updating learning rate
         d_scheduler.step()
         g_scheduler.step()
-
-        run.log(
-            {
-                "epoch": epoch + 1,
-                "g_lr": g_optimizer.param_groups[0]["lr"],
-                "d_lr": d_optimizer.param_groups[0]["lr"],
-            }
-        )
 
     run.finish()
 

@@ -4,7 +4,6 @@ import os
 
 import torch.nn.functional as F
 from torchvision.models import inception_v3, Inception_V3_Weights
-from sklearn.neighbors import NearestNeighbors
 from scipy.linalg import sqrtm
 from torchvision import transforms
 from load_data import get_dataloaders
@@ -128,12 +127,13 @@ def evaluate_cycle_gan(checkpoint_path=None):
     generator_y_to_x.load_state_dict(checkpoint["generator_y_to_x"])
 
     # Data loaders
-    x_train_loader, y_train_loader, x_val_loader, y_val_loader, _, _ = get_dataloaders()
+    x_train_loader, y_train_loader = get_dataloaders(mode="train")
+    x_val_loader, y_val_loader = get_dataloaders(mode="val")
 
     # Compute MiFID and FID for both directions
     mifid_y = compute_mifid(
         x_val_loader, y_train_loader, y_val_loader, generator_x_to_y
-    ) # x to y
+    )  # x to y
     mifid_x = compute_mifid(
         y_val_loader, x_train_loader, x_val_loader, generator_y_to_x
     )

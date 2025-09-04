@@ -46,6 +46,3 @@ The project is under active development. Below is a summary of the implemented c
 
     - Implemented training loop
 
-## Next Steps
-
-- Implement utilities for running this project on kaggle

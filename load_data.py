@@ -78,6 +78,7 @@ class ImageDataset(Dataset):
 
         return image  # type: ignore
 
+
 def make_loaders(x_ds, y_ds):
     x_sampler = RandomSampler(
         data_source=x_ds,
@@ -89,7 +90,7 @@ def make_loaders(x_ds, y_ds):
         replacement=True,
         num_samples=min(len(x_ds), len(y_ds)),
     )
-    
+
     x_loader = DataLoader(
         x_ds,
         batch_size=Config.train_batch_size,
@@ -104,13 +105,13 @@ def make_loaders(x_ds, y_ds):
         num_workers=Config.num_workers,
         pin_memory=Config.pin_memory,
         drop_last=True,
-        sampler=y_sampler
+        sampler=y_sampler,
     )
-    
-    return x_loader, y_loader
-    
 
-def get_dataloaders():
+    return x_loader, y_loader
+
+
+def get_dataloaders(mode="train"):
     """
     Create training and test DataLoaders for both domains (X: Monet, Y: photos).
 
@@ -128,27 +129,22 @@ def get_dataloaders():
         ]
     )
 
-    # Initialize datasets
-    x_train_dataset = ImageDataset(Config.x_train_dir, transform=transform)
-    y_train_dataset = ImageDataset(Config.y_train_dir, transform=transform)
-    x_val_dataset = ImageDataset(Config.x_val_dir, transform=transform)
-    y_val_dataset = ImageDataset(Config.y_val_dir, transform=transform)
-    x_test_dataset = ImageDataset(Config.x_test_dir, transform=transform)
-    y_test_dataset = ImageDataset(Config.y_test_dir, transform=transform)
+    match mode:
+        case "train":
+            x_dataset = ImageDataset(Config.x_train_dir, transform=transform)
+            y_dataset = ImageDataset(Config.y_train_dir, transform=transform)
+        case "val":
+            x_dataset = ImageDataset(Config.x_val_dir, transform=transform)
+            y_dataset = ImageDataset(Config.y_val_dir, transform=transform)
+        case "test":
+            x_dataset = ImageDataset(Config.x_test_dir, transform=transform)
+            y_dataset = ImageDataset(Config.y_test_dir, transform=transform)
 
-    
-    x_train_loader, y_train_loader = make_loaders(x_train_dataset, y_train_dataset)
-    x_val_loader, y_val_loader = make_loaders(x_val_dataset, y_val_dataset)
-    x_test_loader, y_test_loader = make_loaders(x_test_dataset, y_test_dataset)
-    
-    
+    x_loader, y_loader = make_loaders(x_dataset, y_dataset)
+
     return (
-        x_train_loader,
-        y_train_loader,
-        x_val_loader,
-        y_val_loader,
-        x_test_loader,
-        y_test_loader,
+        x_loader,
+        y_loader,
     )
 
 
@@ -164,12 +160,12 @@ if __name__ == "__main__":
         ]
     )
 
-    x_loader, y_loader, _, _, _, _ =get_dataloaders()
-    
+    x_loader, y_loader = get_dataloaders(mode="train")
+
     count = 0
     for imgx, imgy in zip(x_loader, y_loader):
         count += 1
-    
+
     print(count)
 
     # images = next(iter(x_loader))

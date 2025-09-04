@@ -9,7 +9,6 @@ from utils import Config
 from networks import Generator, Discriminator
 from losses import cycle_consistency_loss, adversarial_loss, identity_loss
 from load_data import get_dataloaders
-from torchvision.utils import save_image
 
 
 
@@ -88,14 +87,7 @@ def train_cycle_gan():
     )
 
     # Data loaders
-    (
-        x_train_loader,
-        y_train_loader,
-        _,
-        _,
-        x_test_loader,
-        y_test_loader,
-    ) = get_dataloaders()
+    x_train_loader,y_train_loader  = get_dataloaders(mode='train')
 
     # Create checkpoint directory
     os.makedirs(Config.checkpoint_dir, exist_ok=True)
@@ -193,40 +185,6 @@ def train_cycle_gan():
             metrics = evaluate_cycle_gan(checkpoint_path=checkpoint_path)
             print(f"Epoch [{epoch+1}] Evaluation Metrics: {metrics}")
 
-def generate_and_save_images(checkpoint_path, max_images, prefix) -> None:
-    """
-    Generate images using a generator and save them to a directory.
-    """
-    # Ensure output directory exists
-    os.makedirs(Config.eval_dir, exist_ok=True)
-
-        # Initialize models
-    generator_x_to_y = Generator().to(Config.device).eval()
-
-    # Load checkpoint
-    checkpoint = torch.load(checkpoint_path, map_location=Config.device)
-    generator_x_to_y.load_state_dict(checkpoint["generator_x_to_y"])
-
-    # Data loaders
-    _, _,_,_, x_test_loader, _ = get_dataloaders()
-
-    # Set generator to evaluation mode
-    generator_x_to_y.eval()
-
-    # Generate and save images
-    with torch.no_grad():
-        for i, images in enumerate(x_test_loader):
-            if i >= max_images:
-                break
-            images = images.to(Config.device)
-            generated_images = generator_x_to_y(images)
-            # Save images with normalization to [0, 1] for visualization
-            save_image(
-                generated_images,
-                os.path.join(Config.eval_dir, f"{prefix}_{i}.png"),
-                normalize=True,
-                range=(-1, 1)  # Match normalization from load_data.py
-            )
 
 
 if __name__ == "__main__":

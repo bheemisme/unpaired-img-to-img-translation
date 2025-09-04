@@ -175,15 +175,8 @@ def train_cycle_gan():
             g_loss.backward()
             g_optimizer.step()
 
-            print(
-                f"Epoch [{epoch+1}/{Config.num_epochs}] Batch [{i+1}] "
-                f"D Loss: {d_loss.item():.4f} G Loss: {g_loss.item():.4f} "
-                f"(Adv: {g_adv_loss.item():.4f}, Cycle: {cycle_loss.item():.4f}, "
-                f"Id: {id_loss.item():.4f})"
-            )
-
             # Print progress for every 100 batches
-            if i + 1 % 100 == 0 or i + 1 == len(x_train_loader):
+            if (i + 1 % 100 == 0) or (i + 1 == len(x_train_loader)):
                 print(
                     f"Epoch [{epoch+1}/{Config.num_epochs}] Batch [{i+1}] "
                     f"D Loss: {d_loss.item():.4f} G Loss: {g_loss.item():.4f} "

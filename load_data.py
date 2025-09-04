@@ -162,11 +162,11 @@ if __name__ == "__main__":
 
     x_loader, y_loader = get_dataloaders(mode="train")
 
-    count = 0
-    for imgx, imgy in zip(x_loader, y_loader):
-        count += 1
+    # count = 0
+    # for imgx, imgy in zip(x_loader, y_loader):
+    #     count += 1
 
-    print(count)
+    # print(count)
 
     # images = next(iter(x_loader))
     # print(len(images))
@@ -175,5 +175,6 @@ if __name__ == "__main__":
     # print(images[0][1][:10][:10])
     # print(torch.max(images[0][1]))
     # print(torch.min(images[0][1]))
+    print(len(x_loader))
 
     #

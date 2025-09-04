@@ -38,8 +38,9 @@ def generate_and_save_images(checkpoint_path, max_images, prefix, dest="y") -> N
             images = images.to(Config.device)
             generated_images = generator(images)
 
+            comparision = torch.cat((images, generated_images), dim=3)
             # Save images with normalization to [0, 1] for visualization
-            grid = make_grid(generated_images, nrow=1, normalize=True, value_range=(-1, 1))
+            grid = make_grid(comparision, normalize=True, value_range=(-1, 1))
 
             save_image(
                 tensor=grid,

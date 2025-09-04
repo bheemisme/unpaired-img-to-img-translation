@@ -145,7 +145,7 @@ def train_cycle_gan(checkpoint_path: str | None = None):
                 "d_lr": d_optimizer.param_groups[0]["lr"],
             }
         )
-        train_loop = tqdm(zip(x_train_loader, y_train_loader), desc=f"Training Loop: Epoch {epoch+1}/{Config.num_epochs}")
+        train_loop = tqdm(zip(x_train_loader, y_train_loader), desc=f"Training Loop: Epoch {epoch+1}/{start_epoch+Config.num_epochs}")
         for batch_idx, (real_x, real_y) in enumerate(train_loop):
             real_x = real_x.to(Config.device)
             real_y = real_y.to(Config.device)

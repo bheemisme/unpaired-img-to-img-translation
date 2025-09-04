@@ -120,7 +120,7 @@ def train_cycle_gan(checkpoint_path: str | None = None):
         disc_x.load_state_dict(checkpoint['discriminator_x'])
         disc_y.load_state_dict(checkpoint['discriminator_y'])
         g_optimizer.load_state_dict(checkpoint['opt_gen'])
-        g_optimizer.load_state_dict(checkpoint['opt_disc'])
+        d_optimizer.load_state_dict(checkpoint['opt_disc'])
         start_epoch = checkpoint['epoch']
         
         

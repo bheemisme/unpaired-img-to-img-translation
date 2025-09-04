@@ -23,8 +23,7 @@ def init_wandb():
         entity="sudarshan-v",
         # Set the wandb project where this run will be logged.
         project="unpaired-image-to-image-translation-cycle-gan",
-        config=config
-        
+        config=config,
     )
 
     return run
@@ -96,7 +95,7 @@ def train_cycle_gan():
     """
     run = init_wandb()
     gen_x_to_y, gen_y_to_x, disc_x, disc_y = initialize_models()
-
+    print("models intialized")
     # Optimizers
     g_optimizer = optim.Adam(
         list(gen_x_to_y.parameters()) + list(gen_y_to_x.parameters()),
@@ -104,16 +103,19 @@ def train_cycle_gan():
         betas=(Config.beta1, Config.beta2),
     )
     g_scheduler = torch.optim.lr_scheduler.LambdaLR(g_optimizer, lr_lambda=lambda_rule)
+
     d_optimizer = optim.Adam(
         list(disc_x.parameters()) + list(disc_y.parameters()),
         lr=Config.learning_rate,
         betas=(Config.beta1, Config.beta2),
     )
-
     d_scheduler = torch.optim.lr_scheduler.LambdaLR(d_optimizer, lr_lambda=lambda_rule)
+
+    print("optimzers initalized")
     # Data loaders
     x_train_loader, y_train_loader = get_dataloaders(mode="train")
 
+    print("dataloaders initialized")
     # Create checkpoint directory
     os.makedirs(Config.checkpoint_dir, exist_ok=True)
 
@@ -122,7 +124,9 @@ def train_cycle_gan():
 
     # Training loop
     for epoch in range(Config.num_epochs):
+        print(f"epoch: {epoch}")
         for i, (real_x, real_y) in enumerate(zip(x_train_loader, y_train_loader)):
+            print(f"batch: {i}")
             real_x = real_x.to(Config.device)
             real_y = real_y.to(Config.device)
 
@@ -170,6 +174,13 @@ def train_cycle_gan():
 
             g_loss.backward()
             g_optimizer.step()
+
+            print(
+                f"Epoch [{epoch+1}/{Config.num_epochs}] Batch [{i+1}] "
+                f"D Loss: {d_loss.item():.4f} G Loss: {g_loss.item():.4f} "
+                f"(Adv: {g_adv_loss.item():.4f}, Cycle: {cycle_loss.item():.4f}, "
+                f"Id: {id_loss.item():.4f})"
+            )
 
             # Print progress for every 100 batches
             if i + 1 % 100 == 0 or i + 1 == len(x_train_loader):

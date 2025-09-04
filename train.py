@@ -10,6 +10,24 @@ from networks import Generator, Discriminator
 from losses import cycle_consistency_loss, adversarial_loss, identity_loss
 from load_data import get_dataloaders
 
+import wandb
+
+
+def init_wandb():
+    # Start a new wandb run to track this script.
+
+    config = {**{k: v for k, v in Config.__dict__.items() if not k.startswith("__")}}
+    config.pop("print_config")
+    run = wandb.init(
+        # Set the wandb entity where your project will be logged (generally your team name).
+        entity="my-team",
+        # Set the wandb project where this run will be logged.
+        project="unpaired-image-to-image-translation-cycle-gan",
+        config=config,
+        
+    )
+
+    return run
 
 
 def initialize_models() -> Tuple[nn.Module, nn.Module, nn.Module, nn.Module]:
@@ -66,15 +84,17 @@ def save_checkpoint(
     }
     torch.save(checkpoint, filename)
 
+
 def lambda_rule(epoch):
     lr_l = 1.0 - (max(0, epoch - 100) / float(100))
     return lr_l
+
 
 def train_cycle_gan():
     """
     Training loop for CycleGAN.
     """
-
+    run = init_wandb()
     gen_x_to_y, gen_y_to_x, disc_x, disc_y = initialize_models()
 
     # Optimizers
@@ -89,10 +109,10 @@ def train_cycle_gan():
         lr=Config.learning_rate,
         betas=(Config.beta1, Config.beta2),
     )
-    
+
     d_scheduler = torch.optim.lr_scheduler.LambdaLR(d_optimizer, lr_lambda=lambda_rule)
     # Data loaders
-    x_train_loader,y_train_loader  = get_dataloaders(mode='train')
+    x_train_loader, y_train_loader = get_dataloaders(mode="train")
 
     # Create checkpoint directory
     os.makedirs(Config.checkpoint_dir, exist_ok=True)
@@ -110,7 +130,7 @@ def train_cycle_gan():
             disc_y.train()
             gen_x_to_y.train()
             gen_x_to_y.train()
-            
+
             # --- Train Discriminators ---
             d_optimizer.zero_grad()
 
@@ -119,12 +139,8 @@ def train_cycle_gan():
             fake_x = gen_y_to_x(real_y)
 
             # Discriminator losses
-            d_x_loss = adversarial_loss(
-                real_x, fake_x, disc_x, is_discriminator=True
-            )
-            d_y_loss = adversarial_loss(
-                real_y, fake_y, disc_y, is_discriminator=True
-            )
+            d_x_loss = adversarial_loss(real_x, fake_x, disc_x, is_discriminator=True)
+            d_y_loss = adversarial_loss(real_y, fake_y, disc_y, is_discriminator=True)
             d_loss = (d_x_loss + d_y_loss) * 0.5
 
             d_loss.backward()
@@ -139,18 +155,12 @@ def train_cycle_gan():
 
             # Adversarial losses
             g_adv_loss = (
-                adversarial_loss(
-                    real_x, fake_y, disc_y, is_discriminator=False
-                )
-                + adversarial_loss(
-                    real_y, fake_x, disc_x, is_discriminator=False
-                )
+                adversarial_loss(real_x, fake_y, disc_y, is_discriminator=False)
+                + adversarial_loss(real_y, fake_x, disc_x, is_discriminator=False)
             ) * 0.5
 
             # Cycle consistency loss
-            cycle_loss = cycle_consistency_loss(
-                real_x, real_y, gen_x_to_y, gen_y_to_x
-            )
+            cycle_loss = cycle_consistency_loss(real_x, real_y, gen_x_to_y, gen_y_to_x)
 
             # Identity loss
             id_loss = identity_loss(real_x, real_y, gen_x_to_y, gen_y_to_x)
@@ -162,12 +172,22 @@ def train_cycle_gan():
             g_optimizer.step()
 
             # Print progress for every 100 batches
-            if i+1 % 100 == 0 or i+1 == len(x_train_loader) :
+            if i + 1 % 100 == 0 or i + 1 == len(x_train_loader):
                 print(
                     f"Epoch [{epoch+1}/{Config.num_epochs}] Batch [{i+1}] "
                     f"D Loss: {d_loss.item():.4f} G Loss: {g_loss.item():.4f} "
                     f"(Adv: {g_adv_loss.item():.4f}, Cycle: {cycle_loss.item():.4f}, "
                     f"Id: {id_loss.item():.4f})"
+                )
+                run.log(
+                    {
+                        "epoch": epoch + 1,
+                        "d_loss": d_loss.item(),
+                        "g_loss": g_loss.item(),
+                        "g_adv_loss": g_adv_loss.item(),
+                        "cycle_loss": cycle_loss.item(),
+                        "id_loss": id_loss.item(),
+                    }
                 )
 
         # Save checkpoint every 10 epochs
@@ -189,11 +209,20 @@ def train_cycle_gan():
             # Evaluate on test set
             metrics = evaluate_cycle_gan(checkpoint_path=checkpoint_path)
             print(f"Epoch [{epoch+1}] Evaluation Metrics: {metrics}")
-        
+
         # updating learning rate
         d_scheduler.step()
         g_scheduler.step()
 
+        run.log(
+            {
+                "epoch": epoch + 1,
+                "g_lr": g_optimizer.param_groups[0]["lr"],
+                "d_lr": d_optimizer.param_groups[0]["lr"],
+            }
+        )
+
+    run.finish()
 
 
 if __name__ == "__main__":

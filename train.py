@@ -20,10 +20,10 @@ def init_wandb():
     config.pop("print_config")
     run = wandb.init(
         # Set the wandb entity where your project will be logged (generally your team name).
-        entity="my-team",
+        entity="sudarshan-v",
         # Set the wandb project where this run will be logged.
         project="unpaired-image-to-image-translation-cycle-gan",
-        config=config,
+        config=config
         
     )
 
@@ -226,4 +226,5 @@ def train_cycle_gan():
 
 
 if __name__ == "__main__":
-    train_cycle_gan()
+    # train_cycle_gan()
+    init_wandb()

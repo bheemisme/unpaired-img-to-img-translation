@@ -66,6 +66,9 @@ def save_checkpoint(
     }
     torch.save(checkpoint, filename)
 
+def lambda_rule(epoch):
+    lr_l = 1.0 - (max(0, epoch - 100) / float(100))
+    return lr_l
 
 def train_cycle_gan():
     """
@@ -80,12 +83,14 @@ def train_cycle_gan():
         lr=Config.learning_rate,
         betas=(Config.beta1, Config.beta2),
     )
+    g_scheduler = torch.optim.lr_scheduler.LambdaLR(g_optimizer, lr_lambda=lambda_rule)
     d_optimizer = optim.Adam(
         list(disc_x.parameters()) + list(disc_y.parameters()),
         lr=Config.learning_rate,
         betas=(Config.beta1, Config.beta2),
     )
-
+    
+    d_scheduler = torch.optim.lr_scheduler.LambdaLR(d_optimizer, lr_lambda=lambda_rule)
     # Data loaders
     x_train_loader,y_train_loader  = get_dataloaders(mode='train')
 
@@ -184,6 +189,10 @@ def train_cycle_gan():
             # Evaluate on test set
             metrics = evaluate_cycle_gan(checkpoint_path=checkpoint_path)
             print(f"Epoch [{epoch+1}] Evaluation Metrics: {metrics}")
+        
+        # updating learning rate
+        d_scheduler.step()
+        g_scheduler.step()
 
 
 

@@ -50,6 +50,10 @@ def parse_args():
                         help="Number of DataLoader workers")
     parser.add_argument("--pin_memory", type=bool, default=Config.pin_memory,
                         help="Use pin_memory in DataLoader")
+    
+    parser.add_argument("-cp","--checkpoint_path", type=str, default=None,
+                        help="Checkpoint to resume if any, optional")
+    
     args = parser.parse_args()
 
     # Update Config with command-line arguments
@@ -81,13 +85,13 @@ def main():
     Main function to run CycleGAN training.
     """
     # Parse arguments and update Config
-    parse_args()
+    args = parse_args()
     
     Config.print_config()
     print("\n")
     # Call training function
     print(f"Starting CycleGAN training with {Config.num_epochs} epochs...")
-    train_cycle_gan()
+    train_cycle_gan(checkpoint_path=args.checkpoint_path)
     print("Training completed.")
 
 if __name__ == "__main__":

@@ -21,7 +21,7 @@ class Config:
     
     train_batch_size: int = 1  # Standard for CycleGAN to minimize memory usage
     val_batch_size: int = 3
-    test_batch_size: int = 3
+    test_batch_size: int = 1
     
     # image parameters
     img_size: int = 256 # width and height of the image

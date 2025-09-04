@@ -5,7 +5,7 @@ import argparse
 from tqdm import tqdm
 from utils import Config
 from networks import Generator
-from torchvision.utils import save_image
+from torchvision.utils import save_image, make_grid
 from load_data import get_dataloaders
 
 
@@ -39,11 +39,11 @@ def generate_and_save_images(checkpoint_path, max_images, prefix, dest="y") -> N
             generated_images = generator(images)
 
             # Save images with normalization to [0, 1] for visualization
+            grid = make_grid(generated_images, nrow=1, normalize=True, value_range=(-1, 1))
+
             save_image(
-                generated_images,
-                os.path.join(Config.eval_dir, f"{prefix}_{i}.png"),
-                normalize=True,
-                range=(-1, 1),  # Match normalization from load_data.py
+                tensor=grid,
+                fp=os.path.join(Config.eval_dir, f"{prefix}_{i}.png"),
             )
 
 
@@ -67,15 +67,12 @@ def main():
     parser.add_argument(
         "-ysd", "--y_test_dir", type=str, help="path to test images of y domain"
     )
-    parser.add_argument(
-        "-tbs", "--test_batch_size", type=int, help="test batch size"
-    )
+
     
     args = parser.parse_args()
     Config.x_test_dir = args.x_test_dir
     Config.y_test_dir = args.y_test_dir
-    Config.test_batch_size = args.test_batch_size
-    
+
     generate_and_save_images(
         checkpoint_path=args.checkpoint,
         max_images=args.max_images,

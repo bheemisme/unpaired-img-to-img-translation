@@ -89,10 +89,11 @@ def lambda_rule(epoch):
     return lr_l
 
 
-def train_cycle_gan():
+def train_cycle_gan(checkpoint_path: str | None = None):
     """
     Training loop for CycleGAN.
     """
+    
     run = init_wandb()
     gen_x_to_y, gen_y_to_x, disc_x, disc_y = initialize_models()
     print("models intialized")
@@ -111,6 +112,19 @@ def train_cycle_gan():
     )
     d_scheduler = torch.optim.lr_scheduler.LambdaLR(d_optimizer, lr_lambda=lambda_rule)
 
+    start_epoch = 0
+    if checkpoint_path is not None:
+        checkpoint=torch.load(checkpoint_path, map_location=Config.device)
+        gen_x_to_y.load_state_dict(checkpoint['generator_x_to_y'])
+        gen_y_to_x.load_state_dict(checkpoint['generator_y_to_x'])
+        disc_x.load_state_dict(checkpoint['discriminator_x'])
+        disc_y.load_state_dict(checkpoint['discriminator_y'])
+        g_optimizer.load_state_dict(checkpoint['opt_gen'])
+        g_optimizer.load_state_dict(checkpoint['opt_disc'])
+        start_epoch = checkpoint['epoch']
+        
+        
+
     print("optimzers initalized")
     # Data loaders
     x_train_loader, y_train_loader = get_dataloaders(mode="train")
@@ -123,7 +137,7 @@ def train_cycle_gan():
     os.makedirs(Config.checkpoint_dir, exist_ok=True)
 
     # Training loop
-    for epoch in range(Config.num_epochs):
+    for epoch in range(start_epoch, start_epoch + Config.num_epochs):
         run.log(
             {
                 "epoch": epoch + 1,
@@ -131,7 +145,7 @@ def train_cycle_gan():
                 "d_lr": d_optimizer.param_groups[0]["lr"],
             }
         )
-        train_loop = tqdm(zip(x_train_loader, y_train_loader), desc=f"Epoch {epoch+1}/{Config.num_epochs}")
+        train_loop = tqdm(zip(x_train_loader, y_train_loader), desc=f"Training Loop: Epoch {epoch+1}/{Config.num_epochs}")
         for batch_idx, (real_x, real_y) in enumerate(train_loop):
             real_x = real_x.to(Config.device)
             real_y = real_y.to(Config.device)

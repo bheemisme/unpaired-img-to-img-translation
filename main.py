@@ -11,17 +11,13 @@ def parse_args():
     """
     parser = argparse.ArgumentParser(description="Unpaired Image to Image Translation")
     parser.add_argument("-xtd","--x_train_dir", type=str, default=Config.x_train_dir,
-                        help="Path to Monet images directory")
+                        help="Path to photo images directory")
     parser.add_argument("-ytd","--y_train_dir", type=str, default=Config.y_train_dir,
-                        help="Path to photo images directory")
+                        help="Path to monet images directory")
     parser.add_argument("-xvd","--x_val_dir", type=str, default=Config.x_val_dir,
-                        help="Path to Monet images directory")
+                        help="Path to photo images directory")
     parser.add_argument("-yvd","--y_val_dir", type=str, default=Config.y_val_dir,
-                        help="Path to photo images directory")
-    parser.add_argument("-xsd","--x_test_dir", type=str, default=Config.x_test_dir,
-                        help="Path to Monet images directory")
-    parser.add_argument("-ysd","--y_test_dir", type=str, default=Config.y_test_dir,
-                        help="Path to photo images directory")
+                        help="Path to monet images directory")
     
     parser.add_argument("-tbs","--train_batch_size", type=int, default=Config.train_batch_size,
                         help="Batch size for training")
@@ -61,12 +57,9 @@ def parse_args():
     Config.y_train_dir = args.y_train_dir
     Config.x_val_dir = args.x_val_dir
     Config.y_val_dir = args.y_val_dir
-    Config.x_test_dir = args.x_test_dir
-    Config.y_test_dir = args.y_test_dir
     
     Config.train_batch_size = args.train_batch_size
     Config.val_batch_size = args.val_batch_size
-    Config.test_batch_size = args.test_batch_size
     Config.img_size = args.img_size
     
     Config.num_epochs = args.num_epochs

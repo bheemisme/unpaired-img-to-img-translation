@@ -2,11 +2,11 @@ import os
 import torch
 import argparse
 
+from tqdm import tqdm
 from utils import Config
 from networks import Generator
 from torchvision.utils import save_image
 from load_data import get_dataloaders
-
 
 
 def generate_and_save_images(checkpoint_path, max_images, prefix, dest="y") -> None:
@@ -32,7 +32,7 @@ def generate_and_save_images(checkpoint_path, max_images, prefix, dest="y") -> N
 
     # Generate and save images
     with torch.no_grad():
-        for i, images in enumerate(loader):
+        for i, images in enumerate(tqdm(loader, desc="test images")):
             if i >= max_images:
                 break
             images = images.to(Config.device)
@@ -63,14 +63,27 @@ def main():
     parser.add_argument(
         "-d", "--destination", type=str, help="which domain images to generate"
     )
-
+    parser.add_argument("-xsd", "--x_test_dir", type=str, help="path to test images of x domain")
+    parser.add_argument(
+        "-ysd", "--y_test_dir", type=str, help="path to test images of y domain"
+    )
+    parser.add_argument(
+        "-tbs", "--test_batch_size", type=int, help="test batch size"
+    )
+    
     args = parser.parse_args()
+    Config.x_test_dir = args.x_test_dir
+    Config.y_test_dir = args.y_test_dir
+    Config.test_batch_size = args.test_batch_size
+    
     generate_and_save_images(
         checkpoint_path=args.checkpoint,
         max_images=args.max_images,
         prefix=args.prefix,
         dest=args.destination,
     )
+    
+    print(f"saved images to {Config.eval_dir}")
 
 
 

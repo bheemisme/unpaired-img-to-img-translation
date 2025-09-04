@@ -1,6 +1,7 @@
 import torch
 import torch.optim as optim
 import os
+import wandb
 
 from typing import Tuple
 from torch import nn
@@ -9,8 +10,7 @@ from utils import Config
 from networks import Generator, Discriminator
 from losses import cycle_consistency_loss, adversarial_loss, identity_loss
 from load_data import get_dataloaders
-
-import wandb
+from tqdm import tqdm
 
 
 def init_wandb():
@@ -131,7 +131,8 @@ def train_cycle_gan():
                 "d_lr": d_optimizer.param_groups[0]["lr"],
             }
         )
-        for i, (real_x, real_y) in enumerate(zip(x_train_loader, y_train_loader)):
+        train_loop = tqdm(zip(x_train_loader, y_train_loader), desc=f"Epoch {epoch+1}/{Config.num_epochs}")
+        for batch_idx, (real_x, real_y) in enumerate(train_loop):
             real_x = real_x.to(Config.device)
             real_y = real_y.to(Config.device)
 
@@ -181,9 +182,9 @@ def train_cycle_gan():
             g_optimizer.step()
 
             # Print progress for every 100 batches
-            if ((i + 1) % 100 == 0) or (i + 1 == len(x_train_loader)):
+            if ((batch_idx + 1) % 100 == 0) or (batch_idx + 1 == len(x_train_loader)):
                 print(
-                    f"Epoch [{epoch+1}/{Config.num_epochs}] Batch [{i+1}] "
+                    f"Epoch [{epoch+1}/{Config.num_epochs}] Batch [{batch_idx+1}] "
                     f"D Loss: {d_loss.item():.4f} G Loss: {g_loss.item():.4f} "
                     f"(Adv: {g_adv_loss.item():.4f}, Cycle: {cycle_loss.item():.4f}, "
                     f"Id: {id_loss.item():.4f})"
@@ -191,7 +192,7 @@ def train_cycle_gan():
                 run.log(
                     {
                         "epoch": epoch + 1,
-                        "batch": i + 1,
+                        "batch": batch_idx + 1,
                         "d_loss": d_loss.item(),
                         "g_loss": g_loss.item(),
                         "g_adv_loss": g_adv_loss.item(),
@@ -215,6 +216,7 @@ def train_cycle_gan():
                 {"opt_gen": g_optimizer, "opt_disc": d_optimizer},
                 checkpoint_path,
             )
+            print(f"saved the checkpoint: {checkpoint_path}")
 
             # Evaluate on test set
             metrics = evaluate_cycle_gan(checkpoint_path=checkpoint_path)
@@ -222,6 +224,7 @@ def train_cycle_gan():
             run.log(metrics)
 
         # updating learning rate
+        print('updating learning rate')
         d_scheduler.step()
         g_scheduler.step()
 

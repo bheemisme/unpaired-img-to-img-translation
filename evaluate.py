@@ -159,7 +159,29 @@ def main():
     parser = argparse.ArgumentParser(description="Unpaired Image to Image Translation")
     
     parser.add_argument("-c", "--checkpoint", type=str, help="checkpoint path")
+    parser.add_argument("-xtd","--x_train_dir", type=str, default=Config.x_train_dir,
+                        help="Path to photo images directory")
+    parser.add_argument("-ytd","--y_train_dir", type=str, default=Config.y_train_dir,
+                        help="Path to monet images directory")
+    parser.add_argument("-xvd","--x_val_dir", type=str, default=Config.x_val_dir,
+                        help="Path to photo images directory")
+    parser.add_argument("-yvd","--y_val_dir", type=str, default=Config.y_val_dir,
+                        help="Path to monet images directory")
+    
+    parser.add_argument("-tbs","--train_batch_size", type=int, default=Config.train_batch_size,
+                        help="Batch size for training")
+    parser.add_argument("-vbs","--val_batch_size", type=int, default=Config.val_batch_size,
+                        help="Batch size for training")
     args = parser.parse_args()
+    
+    Config.x_train_dir = args.x_train_dir
+    Config.y_train_dir = args.y_train_dir
+    Config.x_val_dir = args.x_val_dir
+    Config.y_val_dir = args.y_val_dir
+    
+    Config.train_batch_size = args.train_batch_size
+    Config.val_batch_size = args.val_batch_size
+    
     metrics = evaluate_cycle_gan(checkpoint_path=args.checkpoint)
     print("Evaluation Metrics:")
     print(f"Combined MiFID: {metrics['mifid_combined']:.4f}")

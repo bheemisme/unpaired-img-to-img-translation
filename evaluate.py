@@ -4,43 +4,51 @@ import os
 import argparse
 
 import torch.nn.functional as F
-from torchvision.models import inception_v3, Inception_V3_Weights
+from torchvision import models
 from scipy import linalg
 from load_data import get_dataloaders
 from networks import Generator
 from utils import Config
 from torch import nn
+from torchinfo import summary
+from torchvision.transforms import transforms
+
 
 # Load InceptionV3 once and return
 def get_inception_model():
-    inception = inception_v3(pretrained=True, transform_input=False)
+    inception = models.inception_v3(weights=models.Inception_V3_Weights.DEFAULT, progress=True)
+    inception.fc = nn.Identity()
     inception.eval()
     inception.to(Config.device)
 
-    # Keep everything up to the last pooling layer (before fc)
-    feature_extractor = nn.Sequential(*list(inception.children())[:-1])
-    return feature_extractor
+    return inception
+
 
 @torch.no_grad()
 def get_features(loader, model, generator=None):
     feats = []
+
+    inception_transform = transforms.Compose(
+        [
+            transforms.Resize((299, 299)),
+            # Convert from [-1, 1] → [0, 1]
+            transforms.Lambda(lambda x: (x + 1) / 2),
+            # Imagenet normalization
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ]
+    )
+    
     for batch in loader:
         # handle (images, labels) or just images
         imgs = batch[0] if isinstance(batch, (list, tuple)) else batch
         imgs = imgs.to(Config.device, dtype=torch.float32)
-          # If generator is given, map X → Y
+        # If generator is given, map X → Y
         if generator is not None:
             imgs = generator(imgs)
-            
-        # rescale [-1,1] → [0,1]
-        imgs = (imgs + 1) / 2.0
-        imgs = torch.clamp(imgs, 0, 1)
 
-        # resize for inception
-        imgs = F.interpolate(imgs, size=(299, 299), mode="bilinear", align_corners=False)
-
+        imgs = inception_transform(imgs)
         # forward pass
-        f = model(imgs)   # (B, 2048)
+        f = model(imgs)  # (B, 2048)
         feats.append(f.cpu().numpy())
 
     return np.concatenate(feats, axis=0)  # shape (N, 2048)
@@ -51,25 +59,27 @@ def compute_stats(feats: np.ndarray):
     mu = feats.mean(axis=0)
     sigma = np.cov(feats, rowvar=False)
     return mu, sigma
+
+
 # Compute FID given stats
 def compute_fid(mu1, sigma1, mu2, sigma2, eps=1e-6):
     diff = mu1 - mu2
     cov_prod = sigma1.dot(sigma2)
     covmean, _ = linalg.sqrtm(cov_prod, disp=False)
-    
+
     if not np.isfinite(covmean).all():
         offset = np.eye(sigma1.shape[0]) * eps
         covmean = linalg.sqrtm((sigma1 + offset).dot(sigma2 + offset))
-    
+
     if np.iscomplexobj(covmean):
         covmean = covmean.real
-        
+
     return float(diff.dot(diff) + np.trace(sigma1 + sigma2 - 2.0 * covmean))
 
 
 def memorization_score(gen_feats, train_feats):
-    
-     # Normalize to unit vectors (so dot product = cosine similarity)
+
+    # Normalize to unit vectors (so dot product = cosine similarity)
     fake_norm = gen_feats / np.linalg.norm(gen_feats, axis=1, keepdims=True)
     train_norm = train_feats / np.linalg.norm(train_feats, axis=1, keepdims=True)
 
@@ -82,7 +92,7 @@ def memorization_score(gen_feats, train_feats):
     # For each fake image, find its nearest training neighbor
     min_dist = np.min(cos_dist, axis=1)
     mem_score = float(np.mean(min_dist))
-    
+
     if mem_score < 1e-6:
         mem_score = 1
 
@@ -111,13 +121,13 @@ def compute_mifid(test_loader, train_loader, real_loader, generator):
     real_features = get_features(real_loader, model)
     gen_features = get_features(test_loader, model, generator)
     train_features = get_features(train_loader, model)
-    
+
     print(real_features.shape, gen_features.shape, train_features.shape)
 
     # Compute FID
     mu_r, sigma_r = compute_stats(real_features)
     mu_g, sigma_g = compute_stats(gen_features)
-    
+
     print(mu_r.shape, mu_g.shape)
     print(sigma_r.shape, sigma_g.shape)
 
@@ -148,7 +158,9 @@ def evaluate_cycle_gan(checkpoint_path=None):
         checkpoint_path = os.path.join(
             Config.checkpoint_dir, f"checkpoint_epoch_{Config.num_epochs}.pth"
         )
-    checkpoint = torch.load(checkpoint_path, map_location=Config.device, weights_only=True)
+    checkpoint = torch.load(
+        checkpoint_path, map_location=Config.device, weights_only=True
+    )
     generator_x_to_y.load_state_dict(checkpoint["generator_x_to_y"])
     generator_y_to_x.load_state_dict(checkpoint["generator_y_to_x"])
 
@@ -175,39 +187,70 @@ def evaluate_cycle_gan(checkpoint_path=None):
         "fid_y": fid_y,
         "mem_score_y": mem_score_y,
         "fid_x": fid_x,
-        "mem_score_x": mem_score_x
+        "mem_score_x": mem_score_x,
     }
     return metrics
 
 
 def main():
     parser = argparse.ArgumentParser(description="Unpaired Image to Image Translation")
-    
+
     parser.add_argument("-c", "--checkpoint", type=str, help="checkpoint path")
-    parser.add_argument("-xtd","--x_train_dir", type=str, default=Config.x_train_dir,
-                        help="Path to photo images directory")
-    parser.add_argument("-ytd","--y_train_dir", type=str, default=Config.y_train_dir,
-                        help="Path to monet images directory")
-    parser.add_argument("-xvd","--x_val_dir", type=str, default=Config.x_val_dir,
-                        help="Path to photo images directory")
-    parser.add_argument("-yvd","--y_val_dir", type=str, default=Config.y_val_dir,
-                        help="Path to monet images directory")
-    
-    parser.add_argument("-tbs","--train_batch_size", type=int, default=Config.train_batch_size,
-                        help="Batch size for training")
-    parser.add_argument("-vbs","--val_batch_size", type=int, default=Config.val_batch_size,
-                        help="Batch size for training")
+    parser.add_argument(
+        "-xtd",
+        "--x_train_dir",
+        type=str,
+        default=Config.x_train_dir,
+        help="Path to photo images directory",
+    )
+    parser.add_argument(
+        "-ytd",
+        "--y_train_dir",
+        type=str,
+        default=Config.y_train_dir,
+        help="Path to monet images directory",
+    )
+    parser.add_argument(
+        "-xvd",
+        "--x_val_dir",
+        type=str,
+        default=Config.x_val_dir,
+        help="Path to photo images directory",
+    )
+    parser.add_argument(
+        "-yvd",
+        "--y_val_dir",
+        type=str,
+        default=Config.y_val_dir,
+        help="Path to monet images directory",
+    )
+
+    parser.add_argument(
+        "-tbs",
+        "--train_batch_size",
+        type=int,
+        default=Config.train_batch_size,
+        help="Batch size for training",
+    )
+    parser.add_argument(
+        "-vbs",
+        "--val_batch_size",
+        type=int,
+        default=Config.val_batch_size,
+        help="Batch size for training",
+    )
     args = parser.parse_args()
-    
+
     Config.x_train_dir = args.x_train_dir
     Config.y_train_dir = args.y_train_dir
     Config.x_val_dir = args.x_val_dir
     Config.y_val_dir = args.y_val_dir
-    
+
     Config.train_batch_size = args.train_batch_size
     Config.val_batch_size = args.val_batch_size
-    
+
     metrics = evaluate_cycle_gan(checkpoint_path=args.checkpoint)
+
     print("Evaluation Metrics:")
     print(f"Combined MiFID: {metrics['mifid_combined']:.4f}")
     print(f"MiFID (Photo-to-Monet): {metrics['mifid_x']:.4f}")
@@ -218,6 +261,7 @@ def main():
     print(f"Mi (Monet-to-Photo): {metrics['mem_score_y']:.4f}")
 
 
-    
 if __name__ == "__main__":
-    main()
+    # main()
+    out = evaluate_cycle_gan("./checkpoints/checkpoint_epoch_36.pth")
+    print(out)

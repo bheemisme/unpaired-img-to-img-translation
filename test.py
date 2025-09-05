@@ -9,7 +9,7 @@ from torchvision.utils import save_image, make_grid
 from load_data import get_dataloaders
 
 
-def generate_and_save_images(checkpoint_path, max_images, prefix, dest="y") -> None:
+def generate_and_save_images(checkpoint_path, max_images, prefix, merge=False, dest="y") -> None:
     """
     Generate images using a generator and save them to a directory.
     """
@@ -38,9 +38,13 @@ def generate_and_save_images(checkpoint_path, max_images, prefix, dest="y") -> N
             images = images.to(Config.device)
             generated_images = generator(images)
 
-            comparision = torch.cat((images, generated_images), dim=3)
+            grid_set = generated_images
+            
+            if merge:
+                grid_set = torch.cat((images, generated_images), dim=3)
+            
             # Save images with normalization to [0, 1] for visualization
-            grid = make_grid(comparision, normalize=True, value_range=(-1, 1))
+            grid = make_grid(grid_set, normalize=True, value_range=(-1, 1))
 
             save_image(
                 tensor=grid,
@@ -71,6 +75,9 @@ def main():
     parser.add_argument("-op","--output_dir", type=str, default=Config.output_dir,
                         help="Directory to save evaluation images")
 
+    parser.add_argument("-m","--merge", type=bool, default=False,
+                        help="To get merged output of original and generated image")
+
     
     args = parser.parse_args()
     Config.x_test_dir = args.x_test_dir
@@ -82,6 +89,7 @@ def main():
         max_images=args.max_images,
         prefix=args.prefix,
         dest=args.destination,
+        merge=args.merge
     )
     
     print(f"saved images to {Config.output_dir}")

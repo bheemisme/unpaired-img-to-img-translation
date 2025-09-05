@@ -75,7 +75,7 @@ def main():
     parser.add_argument("-op","--output_dir", type=str, default=Config.output_dir,
                         help="Directory to save evaluation images")
 
-    parser.add_argument("-m","--merge", type=bool, default=False,
+    parser.add_argument("-mg","--merge", type=bool, default=False,
                         help="To get merged output of original and generated image")
 
     

@@ -5,41 +5,63 @@ import argparse
 
 import torch.nn.functional as F
 from torchvision.models import inception_v3, Inception_V3_Weights
-from scipy.linalg import sqrtm
+from scipy import linalg
 from torchvision import transforms
 from load_data import get_dataloaders
 from networks import Generator
 from utils import Config
 
+# Load InceptionV3 once and return
+def get_inception_model():
+    model = inception_v3(pretrained=True, transform_input=False, aux_logits=False)
+    model.fc = torch.nn.Identity()   # remove classification head, use 2048-D features
+    model = model.to(Config.device).eval()
+    return model
 
-def get_features(dataloader, inception, transform, generator=None):
-    features = []
-    with torch.no_grad():
-        for batch in dataloader:
-            imgs = batch.to(Config.device)
+@torch.no_grad()
+def get_features(loader, model, generator=None):
+    feats = []
+    for batch in loader:
+        # handle (images, labels) or just images
+        imgs = batch[0] if isinstance(batch, (list, tuple)) else batch
+        imgs = imgs.to(Config.device, dtype=torch.float32)
+          # If generator is given, map X → Y
+        if generator is not None:
+            imgs = generator(imgs)
+            
+        # rescale [-1,1] → [0,1]
+        imgs = (imgs + 1) / 2.0
+        imgs = torch.clamp(imgs, 0, 1)
 
-            imgs.to(Config.device)
-            # If generator provided (e.g. X -> Y)
-            if generator is not None:
-                imgs = generator(imgs)
+        # resize for inception
+        imgs = F.interpolate(imgs, size=(299, 299), mode="bilinear", align_corners=False)
 
-            # Extract features
-            imgs = transform(imgs)
-            feats = inception(imgs)[0].view(imgs.size(0), -1)  # (B, 2048)
-            features.append(feats.cpu())
-    return torch.cat(features, dim=0)  # (N, 2048)
+        # forward pass
+        f = model(imgs)   # (B, 2048)
+        feats.append(f.cpu().numpy())
+
+    return np.concatenate(feats, axis=0)  # shape (N, 2048)
 
 
-def calculate_fid(mu1, sigma1, mu2, sigma2):
+# Compute mean and covariance
+def compute_stats(feats: np.ndarray):
+    mu = feats.mean(axis=0)
+    sigma = np.cov(feats, rowvar=False)
+    return mu, sigma
+# Compute FID given stats
+def compute_fid(mu1, sigma1, mu2, sigma2, eps=1e-6):
     diff = mu1 - mu2
-    covmean = sqrtm(sigma1 @ sigma2)
-
-    # numerical stability
+    cov_prod = sigma1.dot(sigma2)
+    covmean, _ = linalg.sqrtm(cov_prod, disp=False)
+    
+    if not np.isfinite(covmean).all():
+        offset = np.eye(sigma1.shape[0]) * eps
+        covmean = linalg.sqrtm((sigma1 + offset).dot(sigma2 + offset))
+    
     if np.iscomplexobj(covmean):
         covmean = covmean.real
-
-    fid = diff @ diff + np.trace(sigma1 + sigma2 - 2 * covmean)
-    return float(fid)
+        
+    return float(diff.dot(diff) + np.trace(sigma1 + sigma2 - 2.0 * covmean))
 
 
 def memorization_score(fake_feats, train_feats):
@@ -78,25 +100,18 @@ def compute_mifid(test_loader, train_loader, real_loader, generator):
         .eval()
         .to(Config.device)
     )
-    transform = transforms.Compose(
-        [
-            transforms.Resize((299, 299)),
-            transforms.Normalize(mean=[0.5] * 3, std=[0.5] * 3),
-        ]
-    )
-
+  
     # Extract features
-    real_features = get_features(real_loader, inception, transform)
-    gen_features = get_features(test_loader, inception, transform, generator)
-    train_features = get_features(train_loader, inception, transform)
+    real_features = get_features(real_loader, inception)
+    gen_features = get_features(test_loader, inception, generator)
+    train_features = get_features(train_loader, inception)
 
     # Compute FID
-    mu_r, mu_g = torch.mean(real_features, dim=0), torch.mean(gen_features, dim=0)
-    sigma_r, sigma_g = np.cov(real_features, rowvar=False), np.cov(
-        gen_features, rowvar=False
-    )
+    mu_r, sigma_r = compute_stats(real_features)
+    mu_g, sigma_g = compute_stats(gen_features)
+   
 
-    fid = calculate_fid(mu_r, sigma_r, mu_g, sigma_g)
+    fid = compute_fid(mu_r, sigma_r, mu_g, sigma_g)
     mem_score = memorization_score(gen_features, train_features)
 
     mifid = fid / mem_score  # Avoid division by zero

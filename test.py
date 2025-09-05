@@ -48,7 +48,7 @@ def generate_and_save_images(checkpoint_path, max_images, prefix, merge=False, d
 
             save_image(
                 tensor=grid,
-                fp=os.path.join(Config.output_dir, f"{prefix}_{i}.png"),
+                fp=os.path.join(Config.output_dir, f"{prefix}_{i}.jpg"),
             )
 
 

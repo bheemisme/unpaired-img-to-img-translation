@@ -23,8 +23,7 @@ def parse_args():
                         help="Batch size for training")
     parser.add_argument("-vbs","--val_batch_size", type=int, default=Config.val_batch_size,
                         help="Batch size for training")
-    parser.add_argument("-sbs","--test_batch_size", type=int, default=Config.test_batch_size,
-                        help="Batch size for training")
+    
     
     
     parser.add_argument("--img_size", type=int, default=Config.img_size,
@@ -44,8 +43,6 @@ def parse_args():
     
     parser.add_argument("--checkpoint_dir", type=str, default=Config.checkpoint_dir,
                         help="Directory to save checkpoints")
-    parser.add_argument("--eval_dir", type=str, default=Config.eval_dir,
-                        help="Directory to save evaluation images")
     parser.add_argument("--num_workers", type=int, default=Config.num_workers,
                         help="Number of DataLoader workers")
     parser.add_argument("--pin_memory", type=bool, default=Config.pin_memory,
@@ -74,7 +71,6 @@ def parse_args():
     Config.lambda_identity = args.lambda_identity
     
     Config.checkpoint_dir = args.checkpoint_dir
-    Config.eval_dir = args.eval_dir
     Config.num_workers = args.num_workers
     Config.pin_memory = args.pin_memory
 

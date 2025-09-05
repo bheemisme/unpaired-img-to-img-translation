@@ -49,7 +49,7 @@ class Config:
     beta2: float = 0.999
     num_epochs: int = 200
     checkpoint_dir: str = "./checkpoints"
-    eval_dir: str = "./output"  # Directory for saving test images
+    output_dir: str = "./output"  # Directory for saving test images
 
     @classmethod
     def print_config(cls):

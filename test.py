@@ -14,7 +14,7 @@ def generate_and_save_images(checkpoint_path, max_images, prefix, dest="y") -> N
     Generate images using a generator and save them to a directory.
     """
     # Ensure output directory exists
-    os.makedirs(Config.eval_dir, exist_ok=True)
+    os.makedirs(Config.output_dir, exist_ok=True)
 
     checkpoint = torch.load(checkpoint_path, map_location=Config.device)
     generator = Generator()
@@ -44,7 +44,7 @@ def generate_and_save_images(checkpoint_path, max_images, prefix, dest="y") -> N
 
             save_image(
                 tensor=grid,
-                fp=os.path.join(Config.eval_dir, f"{prefix}_{i}.png"),
+                fp=os.path.join(Config.output_dir, f"{prefix}_{i}.png"),
             )
 
 
@@ -68,11 +68,14 @@ def main():
     parser.add_argument(
         "-ysd", "--y_test_dir", type=str, help="path to test images of y domain"
     )
+    parser.add_argument("-op","--output_dir", type=str, default=Config.output_dir,
+                        help="Directory to save evaluation images")
 
     
     args = parser.parse_args()
     Config.x_test_dir = args.x_test_dir
     Config.y_test_dir = args.y_test_dir
+    Config.output_dir = args.output_dir
 
     generate_and_save_images(
         checkpoint_path=args.checkpoint,
@@ -81,7 +84,7 @@ def main():
         dest=args.destination,
     )
     
-    print(f"saved images to {Config.eval_dir}")
+    print(f"saved images to {Config.output_dir}")
 
 
 

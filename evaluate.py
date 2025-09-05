@@ -6,17 +6,20 @@ import argparse
 import torch.nn.functional as F
 from torchvision.models import inception_v3, Inception_V3_Weights
 from scipy import linalg
-from torchvision import transforms
 from load_data import get_dataloaders
 from networks import Generator
 from utils import Config
+from torch import nn
 
 # Load InceptionV3 once and return
 def get_inception_model():
-    model = inception_v3(pretrained=True, transform_input=False, aux_logits=False)
-    model.fc = torch.nn.Identity()   # remove classification head, use 2048-D features
-    model = model.to(Config.device).eval()
-    return model
+    inception = inception_v3(pretrained=True, transform_input=False)
+    inception.eval()
+    inception.to(Config.device)
+
+    # Keep everything up to the last pooling layer (before fc)
+    feature_extractor = nn.Sequential(*list(inception.children())[:-1])
+    return feature_extractor
 
 @torch.no_grad()
 def get_features(loader, model, generator=None):

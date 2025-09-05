@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import os
+import argparse
 
 import torch.nn.functional as F
 from torchvision.models import inception_v3, Inception_V3_Weights
@@ -85,21 +86,21 @@ def compute_mifid(test_loader, train_loader, real_loader, generator):
     )
 
     # Extract features
-    real_features = get_features(real_loader, inception, transform, generator)
-    fake_features = get_features(test_loader, inception, transform, generator)
-    train_features = get_features(train_loader, inception, transform, generator)
+    real_features = get_features(real_loader, inception, transform)
+    gen_features = get_features(test_loader, inception, transform, generator)
+    train_features = get_features(train_loader, inception, transform)
 
     # Compute FID
-    mu_r, mu_g = torch.mean(real_features, dim=0), torch.mean(fake_features, dim=0)
+    mu_r, mu_g = torch.mean(real_features, dim=0), torch.mean(gen_features, dim=0)
     sigma_r, sigma_g = np.cov(real_features, rowvar=False), np.cov(
-        fake_features, rowvar=False
+        gen_features, rowvar=False
     )
 
     fid = calculate_fid(mu_r, sigma_r, mu_g, sigma_g)
-    mem_score = memorization_score(fake_features, train_features)
+    mem_score = memorization_score(gen_features, train_features)
 
     mifid = fid / mem_score  # Avoid division by zero
-    return mifid
+    return mifid, fid, mem_score
 
 
 def evaluate_cycle_gan(checkpoint_path=None):
@@ -122,7 +123,7 @@ def evaluate_cycle_gan(checkpoint_path=None):
         checkpoint_path = os.path.join(
             Config.checkpoint_dir, f"checkpoint_epoch_{Config.num_epochs}.pth"
         )
-    checkpoint = torch.load(checkpoint_path, map_location=Config.device)
+    checkpoint = torch.load(checkpoint_path, map_location=Config.device, weights_only=True)
     generator_x_to_y.load_state_dict(checkpoint["generator_x_to_y"])
     generator_y_to_x.load_state_dict(checkpoint["generator_y_to_x"])
 
@@ -131,10 +132,10 @@ def evaluate_cycle_gan(checkpoint_path=None):
     x_val_loader, y_val_loader = get_dataloaders(mode="val")
 
     # Compute MiFID and FID for both directions
-    mifid_y = compute_mifid(
+    mifid_y, fid_y, mem_score_y = compute_mifid(
         x_val_loader, y_train_loader, y_val_loader, generator_x_to_y
     )  # x to y
-    mifid_x = compute_mifid(
+    mifid_x, fid_x, mem_score_x = compute_mifid(
         y_val_loader, x_train_loader, x_val_loader, generator_y_to_x
     )
 
@@ -146,15 +147,27 @@ def evaluate_cycle_gan(checkpoint_path=None):
         "mifid_combined": mifid_combined,
         "mifid_x": mifid_x,
         "mifid_y": mifid_y,
+        "fid_y": fid_y,
+        "mem_score_y": mem_score_y,
+        "fid_x": fid_x,
+        "mem_score_x": mem_score_x
     }
     return metrics
 
 
-if __name__ == "__main__":
-    metrics = evaluate_cycle_gan()
+def main():
+    parser = argparse.ArgumentParser(description="Unpaired Image to Image Translation")
+    
+    parser.add_argument("-c", "--checkpoint", type=str, help="checkpoint path")
+    args = parser.parse_args()
+    metrics = evaluate_cycle_gan(checkpoint_path=args.checkpoint)
     print("Evaluation Metrics:")
     print(f"Combined MiFID: {metrics['mifid_combined']:.4f}")
     print(f"MiFID (Photo-to-Monet): {metrics['mifid_x']:.4f}")
     print(f"MiFID (Monet-to-Photo): {metrics['mifid_y']:.4f}")
     print(f"FID (Photo-to-Monet): {metrics['fid_x']:.4f}")
     print(f"FID (Monet-to-Photo): {metrics['fid_y']:.4f}")
+
+    
+if __name__ == "__main__":
+    main()

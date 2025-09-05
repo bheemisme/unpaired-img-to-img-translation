@@ -262,6 +262,5 @@ def main():
 
 
 if __name__ == "__main__":
-    # main()
-    out = evaluate_cycle_gan("./checkpoints/checkpoint_epoch_36.pth")
-    print(out)
+    main()
+   

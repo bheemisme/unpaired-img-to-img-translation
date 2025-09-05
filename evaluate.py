@@ -64,10 +64,10 @@ def compute_fid(mu1, sigma1, mu2, sigma2, eps=1e-6):
     return float(diff.dot(diff) + np.trace(sigma1 + sigma2 - 2.0 * covmean))
 
 
-def memorization_score(fake_feats, train_feats):
+def memorization_score(gen_feats, train_feats):
     
      # Normalize to unit vectors (so dot product = cosine similarity)
-    fake_norm = fake_feats / np.linalg.norm(fake_feats, axis=1, keepdims=True)
+    fake_norm = gen_feats / np.linalg.norm(gen_feats, axis=1, keepdims=True)
     train_norm = train_feats / np.linalg.norm(train_feats, axis=1, keepdims=True)
 
     # Compute cosine similarity: (N_fake, N_train)
@@ -113,11 +113,15 @@ def compute_mifid(test_loader, train_loader, real_loader, generator):
     real_features = get_features(real_loader, inception)
     gen_features = get_features(test_loader, inception, generator)
     train_features = get_features(train_loader, inception)
+    
+    print(real_features.shape, gen_features.shape, train_features.shape)
 
     # Compute FID
     mu_r, sigma_r = compute_stats(real_features)
     mu_g, sigma_g = compute_stats(gen_features)
-   
+    
+    print(mu_r.shape, mu_g.shape)
+    print(sigma_r.shape, sigma_g.shape)
 
     fid = compute_fid(mu_r, sigma_r, mu_g, sigma_g)
     mem_score = memorization_score(gen_features, train_features)

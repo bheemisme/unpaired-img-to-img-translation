@@ -189,6 +189,9 @@ def main():
     print(f"MiFID (Monet-to-Photo): {metrics['mifid_y']:.4f}")
     print(f"FID (Photo-to-Monet): {metrics['fid_x']:.4f}")
     print(f"FID (Monet-to-Photo): {metrics['fid_y']:.4f}")
+    print(f"Mi (Photo-to-Monet): {metrics['mem_score_x']:.4f}")
+    print(f"Mi (Monet-to-Photo): {metrics['mem_score_y']:.4f}")
+
 
     
 if __name__ == "__main__":

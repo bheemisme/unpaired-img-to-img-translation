@@ -65,18 +65,26 @@ def compute_fid(mu1, sigma1, mu2, sigma2, eps=1e-6):
 
 
 def memorization_score(fake_feats, train_feats):
-    fake_norm = F.normalize(fake_feats, dim=1)
-    train_norm = F.normalize(train_feats, dim=1)
+    
+     # Normalize to unit vectors (so dot product = cosine similarity)
+    fake_norm = fake_feats / np.linalg.norm(fake_feats, axis=1, keepdims=True)
+    train_norm = train_feats / np.linalg.norm(train_feats, axis=1, keepdims=True)
 
-    cos_sim = fake_norm @ train_norm.T  # (N_fake, N_train)
-    cos_dist = 1 - cos_sim
-    min_dist, _ = torch.min(cos_dist, dim=1)  # nearest neighbor per fake
-    min_dist = min_dist.mean().item()
+    # Compute cosine similarity: (N_fake, N_train)
+    cos_sim = np.dot(fake_norm, train_norm.T)
 
-    if min_dist < 1e-6:
-        min_dist = 1
+    # Cosine distance = 1 - similarity
+    cos_dist = 1.0 - cos_sim
 
-    return min_dist
+    # For each fake image, find its nearest training neighbor
+    min_dist = np.min(cos_dist, axis=1)
+    mem_score = float(np.mean(min_dist))
+    
+    if mem_score < 1e-6:
+        mem_score = 1
+
+    # Mean of nearest distances
+    return mem_score
 
 
 def compute_mifid(test_loader, train_loader, real_loader, generator):

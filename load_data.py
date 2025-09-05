@@ -83,7 +83,7 @@ def make_loaders(x_ds, y_ds):
     x_sampler = RandomSampler(
         data_source=x_ds,
         replacement=True,
-        num_samples=min(len(x_ds), len(y_ds)),
+        num_samples=max(len(x_ds), len(y_ds)),
     )
     y_sampler = RandomSampler(
         data_source=y_ds,

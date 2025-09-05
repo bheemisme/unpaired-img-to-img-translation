@@ -106,16 +106,11 @@ def compute_mifid(test_loader, train_loader, real_loader, generator):
         tuple: (mifid, fid, mem_distance).
     """
 
-    inception = (
-        inception_v3(weights=Inception_V3_Weights.DEFAULT, progress=True)
-        .eval()
-        .to(Config.device)
-    )
-  
+    model = get_inception_model()
     # Extract features
-    real_features = get_features(real_loader, inception)
-    gen_features = get_features(test_loader, inception, generator)
-    train_features = get_features(train_loader, inception)
+    real_features = get_features(real_loader, model)
+    gen_features = get_features(test_loader, model, generator)
+    train_features = get_features(train_loader, model)
     
     print(real_features.shape, gen_features.shape, train_features.shape)
 
